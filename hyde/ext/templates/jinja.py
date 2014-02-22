@@ -685,13 +685,22 @@ class Jinja2Template(Template):
             settings['extensions'].append(extensions)
 
         filters = conf.get('filters', {})
+
+        def add_filter(value, name=None):
+            parts = value.split('.')
+            module_name = '.'.join(parts[:-1])
+            function_name = parts[-1]
+            module = __import__(module_name, fromlist=[function_name])
+            if name is None:
+                name = function_name
+            settings['filters'][name] = getattr(module, function_name)
+
         if isinstance(filters, dict):
             for name, value in filters.items():
-                parts = value.split('.')
-                module_name = '.'.join(parts[:-1])
-                function_name = parts[-1]
-                module = __import__(module_name, fromlist=[function_name])
-                settings['filters'][name] = getattr(module, function_name)
+                add_filter(value, name)
+        elif isinstance(filters, list):
+            for value in filters:
+                add_filter(value)
 
         self.env = Environment(
                     loader=self.loader,
